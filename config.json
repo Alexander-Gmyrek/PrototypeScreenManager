@@ -1,0 +1,12 @@
+{
+    "screen1": [
+        {"data": "views", "format": "counter"},
+        {"data": "stepcount", "format": "counter"},
+        {"data": "progress", "format": "progressbar"}
+    ],
+    "screen2": [
+        {"data": "stepcount", "format": "counter"},
+        {"data": "progress", "format": "progressbar"},
+        {"data": "views", "format": "gauge"}
+    ]
+}

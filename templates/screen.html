@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ screen }} Stats</title>
+    <link id="counter-css" rel="stylesheet" type="text/css" href="/static/counter.css" disabled>
+    <link id="progressbar-css" rel="stylesheet" type="text/css" href="/static/progressbar.css" disabled>
+    <link id="gauge-css" rel="stylesheet" type="text/css" href="/static/gauge.css" disabled>
+</head>
+<body>
+    <h1>{{ screen }} Stats</h1>
+    <div id="content"></div>
+    {% raw %}
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // get sceen name from the URL
+            const screen = window.location.pathname.split("/").pop();
+
+            console.log(`Loading screen configuration for: ${screen}`);
+
+            fetch(`/api/config/${screen}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Failed to load screen configuration: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(config => {
+                    console.log("Screen configuration loaded:", config);
+                    if (config.length === 0) {
+                        console.warn(`No configuration found for screen: ${screen}`);
+                        return;
+                    }
+                    const contentDiv = document.getElementById("content");
+                    const loadedCSS = new Set();
+
+                    config.forEach(item => {
+                        console.log(`Fetching data for: ${item.data}`);
+
+                        fetch(`/api/data/${item.data}`)
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error(`Failed to load data for ${item.data}: ${response.statusText}`);
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                                console.log(`Data loaded for ${item.data}:`, JSON.stringify(data));
+
+                                fetch(`/template/${item.format}`)
+                                    .then(response => {
+                                        if (!response.ok) {
+                                            throw new Error(`Failed to load template for ${item.format}: ${response.statusText}`);
+                                        }
+                                        return response.text();
+                                    })
+                                    .then(template => {
+                                        console.log(`Template loaded for ${item.format}:`, template);
+
+                                        // Calculate the gauge angle based on value (assuming 0-100 range mapped to 0-180 degrees)
+                                        if (item.format === "gauge") {
+                                            const angle = (data.value / 100) * 180;
+                                            data.value = angle;  // Update value to angle for gauge template
+                                            console.log(`Gauge angle calculated for ${item.data}: ${angle}`);
+                                        }
+
+                                        // Replace template placeholders with actual data using string interpolation
+                                        template = template.replace(/%%data%%/g, item.data)
+                                                           .replace(/%%value%%/g, data.value)
+                                                           .replace(/%%css%%/g, data.css);
+                                        console.log(`Processed template for ${item.data}:`, template);
+                                        contentDiv.innerHTML += template;
+
+                                        // Load the necessary CSS if not already loaded
+                                        if (!loadedCSS.has(item.format)) {
+                                            document.getElementById(`${item.format}-css`).disabled = false;
+                                            loadedCSS.add(item.format);
+                                            console.log(`CSS loaded for ${item.format}`);
+                                        }
+                                    })
+                                    .catch(error => {
+                                        console.error(`Error loading template for ${item.format}:`, error);
+                                    });
+                            })
+                            .catch(error => {
+                                console.error(`Error loading data for ${item.data}:`, error);
+                            });
+                    });
+                })
+                .catch(error => {
+                    console.error("Error loading screen configuration:", error);
+                });
+        });
+    </script>
+    {% endraw %}
+</body>
+</html>
